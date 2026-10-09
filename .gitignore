@@ -1,0 +1,7 @@
+# Ignore .venv, .vscode and test unit.
+.venv/
+.vscode/
+mirv-testing-unit/
+
+__pycache__/
+*.pyc
