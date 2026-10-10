@@ -1,53 +1,12 @@
 from pathlib import Path
-from hashlib import sha256
 from shutil import copy2
 from datetime import datetime
 from json import dumps, loads
 from os import replace
 
-def walk_through_venv(venv: Path) -> list[tuple[str, int, float]]: 
-    '''Walk through .venv files.'''
-
-    entries: list = []
-
-    # Walk through
-    for path in venv.rglob('*'): 
-
-        # Not a file, a .pyc file, in __pycache__: skip.
-        if not path.is_file(): continue
-        if path.suffix == '.pyc' or '__pycache__' in path.parts: continue
-
-        # Record each file's status, for lightweighted-diff.
-        status = path.stat()
-
-        # Add result into list.
-        # Here we record relative path instead of resolved path.
-        # 
-        # Also, add a as_posix() for solve backward-slash problems on NT.
-        entries.append((
-            path.relative_to(venv).as_posix(), 
-            status.st_size, # File size
-            status.st_mtime, # Last written/update time
-        ))
-
-    # Return sorted (from A-Z) list.
-    return sorted(entries)
-
-def sha256_of(path: Path) -> str: 
-    '''Return the sha256 string of ordered file.'''
-
-    # Initialize the sha256 object for chunk-reading.
-    digest = sha256()
-
-    # Read files in binary mode for all files.
-    with path.open('rb') as file: 
-
-        # Here 1 << 20 means read 1Mib per chunk.
-        for chunk in iter(lambda: file.read(1 << 20), b''): 
-            digest.update(chunk)
-
-    # Return string result.
-    return digest.hexdigest()
+from walk import walk_through
+from validate import sha256_of
+from log import logout
 
 def store(store: Path, source: Path, digest: str): 
     '''Copy content into the store. Automatically skips duplicates.'''
@@ -87,7 +46,7 @@ def snapshot(mirv: Path, path: Path) -> Path:
     files: dict[str, str] = {}
     
     # walk_through_venv returns (path, size, time) here.
-    for relative, _, _ in walk_through_venv(path): 
+    for relative in walk_through(path): 
 
         # Calculate the hash of file.
         digest = sha256_of(path / relative)
@@ -131,6 +90,24 @@ def restore(mirv: Path, venv: Path, state: Path) -> None:
         copy2(mirv / 'store' / digest, target)
 
     # Report the extra file in current venv.
-    for relative, _, _ in walk_through_venv(venv): 
-        if relative not in known_files: print(f'mirv: extra file found: {relative}')
+    for relative in walk_through(venv): 
+        if relative not in known_files: logout(f' extra file found: {relative}')
 
+
+# Main entrance of tool.
+if __name__ == '__main__': 
+
+    from sys import argv
+
+    # e.g.: python -m mirv
+    if len(argv) <= 1: 
+        logout('usage: mirv <operation> <optional-parameter>')
+        raise SystemExit
+    
+    # Here the length of argv must be >= 2.
+    operation = argv[1]
+
+    # Operation initialize.
+    if operation == 'init': 
+        initialize_mirv_path(Path.cwd())
+        logout('done.')

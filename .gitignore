@@ -1,5 +1,6 @@
 # Ignore .venv, .vscode and test unit.
 .venv/
+.mirv/
 .vscode/
 mirv-testing-unit/
 
