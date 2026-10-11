@@ -5,7 +5,7 @@ from json import dumps, loads
 from os import replace
 
 from walk import walk_through
-from validate import sha256_of
+from hash import sha256_of
 from log import logout
 
 def store(store: Path, source: Path, digest: str): 
@@ -45,7 +45,7 @@ def snapshot(mirv: Path, path: Path) -> Path:
 
     files: dict[str, str] = {}
     
-    # walk_through_venv returns (path, size, time) here.
+    # walk_through_venv returns path here.
     for relative in walk_through(path): 
 
         # Calculate the hash of file.

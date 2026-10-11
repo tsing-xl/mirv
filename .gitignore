@@ -3,6 +3,7 @@
 .mirv/
 .vscode/
 mirv-testing-unit/
+*.bak
 
 __pycache__/
 *.pyc
