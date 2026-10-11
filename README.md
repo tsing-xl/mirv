@@ -7,7 +7,7 @@
  2. `mirv snapshot`  拍摄快照
  3. `mirv restore`  在需要的时候恢复到之前的快照
 
-[!NOTE]
-仍在不断完善&开发中。当前主版本: 0.x
+> [!CAUTION]
+> 仍在不断完善&开发中。当前主版本: 0.x
 
 Copyright (c) tsing-xl under PNL 1.0.0 License.
