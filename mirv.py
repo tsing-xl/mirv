@@ -1,113 +1,85 @@
-from pathlib import Path
-from shutil import copy2
-from datetime import datetime
-from json import dumps, loads
-from os import replace
+# 
+# Mirage Virtual Environment Snapshot Manager: Mirv
+# Copyright (c) tsing-xl under PNL 1.0.0.
+# 
+# See https://polyformproject.org/licenses/noncommercial/1.0.0
+# 
 
-from walk import walk_through
-from hash import sha256_of
+from pathlib import Path
+from argparse import ArgumentParser
+
+from snapshot import take_snapshot, restore_snapshot
 from log import logout
 
-def store(store: Path, source: Path, digest: str): 
-    '''Copy content into the store. Automatically skips duplicates.'''
 
-    target_file: Path = store / digest
+# Mirv constants.
+__version__: str = '0.1'
 
-    # If target_file is already exists, skip.
-    if not target_file.exists(): copy2(source, target_file)
-
-def write_snapshot_json(path: Path, files: dict[str, str]) -> Path: 
-    '''Write the snapshot file to given path.'''
-
-    # The timestamp of now.
-    created = datetime.now().strftime('%Y-%m-%dT%H-%M-%S')
-
-    # Create a temp file so that incompleted json snapshot
-    # will not loaded by glob('*.json').
-    temp_file: Path = path / 'snapshot' / 'writing.tmp'
-    temp_file.write_text(dumps(
-        {
-            'created': created, 
-            'files': files, 
-        }, 
-        indent = 2, 
-    ), encoding = 'utf-8')
-
-    # The final file name of the snapshot.
-    final: Path = path / 'snapshot' / f'{created}.json'
-    replace(temp_file, final)
-
-    # Return the final snapshot's path object.
-    return final
-
-def snapshot(mirv: Path, path: Path) -> Path: 
-    '''Create a snapshot for current venv.'''
-
-    files: dict[str, str] = {}
-    
-    # walk_through_venv returns path here.
-    for relative in walk_through(path): 
-
-        # Calculate the hash of file.
-        digest = sha256_of(path / relative)
-
-        # Store the file with hashes file name.
-        store(mirv / 'store', path / relative, digest)
-
-        # Let the snapshot.json records.
-        files[relative] = digest
-
-    # Return the status of write_snapshot_json for later process.
-    return write_snapshot_json(mirv, files)
-
-def initialize_mirv_path(workspace: Path) -> None: 
+# Agrparse argument parser builder.
+def parser_builder() -> ArgumentParser: 
     '''
-    Initializes the path of mirv.
-    
-    The workspace parameter receives a getcwd() result in default.
+    Build a parser for mirv.
     '''
 
-    # Create the snapshot directory.
-    (workspace / '.mirv' / 'store').mkdir(parents = True, exist_ok = True)
-    (workspace / '.mirv' / 'snapshot').mkdir(parents = True, exist_ok = True)
+    # Build a ArgumentParser first.
+    # TODO: Better description.
+    parser = ArgumentParser(
+        prog = 'mirv', 
+        description = 'Take a snapshot for your virtual environment, '
+        'and restore it to ordered state.'
+    )
 
-def restore(mirv: Path, venv: Path, state: Path) -> None: 
-    '''Put every file of the state back into venv.'''
+    # Sub parser. -> mirv <operation>.
+    operation_parser = parser.add_subparsers(dest = 'operation', required = True)
 
-    manifest: dict = loads(state.read_text('utf-8'))
-    known_files = manifest['files']
+    # Operation: init
+    operation_init = operation_parser.add_parser(
+        'init', 
+        help = 'Initialize the mirv storage library.'
+    )
+    operation_init.add_argument('--workspace', type = Path, default = Path.cwd())
 
-    # Put back every file to the ordered state.
-    for relative, digest in known_files.items(): 
+    # Operation: snapshot
+    operation_snapshot = operation_parser.add_parser(
+        'snapshot', 
+        help = 'Take a json snapshot for current environment\'s state.'
+    )
+    operation_snapshot.add_argument('--workspace', type = Path, default = Path.cwd())
 
-        # Translate the relative path to absolute path.
-        target: Path = venv / relative
+    # Operation: restore
+    operation_restore = operation_parser.add_parser(
+        'restore', 
+        help = 'Restore the environment to an ordered state.'
+    )
+    operation_restore.add_argument('state', type = Path, help = 'The snapshot json file to restore.')
+    operation_restore.add_argument('--workspace', type = Path, default = Path.cwd())
 
-        # Before copying, create the directory first.
-        target.parent.mkdir(parents = True, exist_ok = True)
+    # Return the completed parser.
+    return parser
 
-        # Copy.
-        copy2(mirv / 'store' / digest, target)
-
-    # Report the extra file in current venv.
-    for relative in walk_through(venv): 
-        if relative not in known_files: logout(f' extra file found: {relative}')
-
-
-# Main entrance of tool.
+# Main guard.
 if __name__ == '__main__': 
 
-    from sys import argv
+    # Receive arguments from console/tty.
+    arguments = parser_builder().parse_args()
 
-    # e.g.: python -m mirv
-    if len(argv) <= 1: 
-        logout('usage: mirv <operation> <optional-parameter>')
-        raise SystemExit
-    
-    # Here the length of argv must be >= 2.
-    operation = argv[1]
+    if arguments.operation == 'init': 
 
-    # Operation initialize.
-    if operation == 'init': 
-        initialize_mirv_path(Path.cwd())
-        logout('done.')
+        # Initialize the folder.
+        # Here add a Path wrap for passing type checking.
+        _mirv = Path(arguments.workspace) / '.mirv'
+
+        _snapshot = _mirv / 'snapshot'
+        _storage = _mirv / 'storage'
+
+        # Create it.
+        _snapshot.mkdir(parents = True, exist_ok = True)
+        _storage.mkdir(parents = True, exist_ok = True)
+
+        logout('Done.')
+
+    elif arguments.operation == 'snapshot': 
+        take_snapshot(arguments.workspace)
+
+    elif arguments.operation == 'restore': 
+        restore_snapshot(arguments.workspace, arguments.state)

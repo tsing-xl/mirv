@@ -27,7 +27,7 @@ def mirv_checkup(workspace_path: Path) -> None:
 
         # Print a debug log and exit.
         logout('Missing .mirv folder in current workspace. Have you initialized mirv here?')
-        raise SystemExit
+        raise SystemExit(1)
 
 def strict_mirv_checkup(workspace_path: Path) -> None: 
     '''
@@ -47,7 +47,7 @@ def strict_mirv_checkup(workspace_path: Path) -> None:
 
         # Print a debug log and exit.
         logout('.mirv structure incomplete. Try initialize again.')
-        raise SystemExit
+        raise SystemExit(1)
 
 # TODO: Support any kind of virtual environment.
 def venv_checkup(workspace_path: Path) -> None: 
@@ -63,4 +63,4 @@ def venv_checkup(workspace_path: Path) -> None:
 
         # Print a debug log and exit.
         logout('Mirv have nothing to record: .venv is empty or missing.')
-        raise SystemExit
+        raise SystemExit(1)

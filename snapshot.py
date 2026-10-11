@@ -93,12 +93,12 @@ def restore_snapshot(workspace_path: Path, ordered_state: Path) -> None:
 
             # Print a debug log and quit.
             logout('Your state is broken. Please try another state.')
-            raise SystemExit
+            raise SystemExit(1)
 
     except JSONDecodeError: 
         # Print a debug log and quit.
         logout('Your state is broken. Please try another state.')
-        raise SystemExit
+        raise SystemExit(1)
 
     # Probably dict
     known_files: dict = manifest['files']
